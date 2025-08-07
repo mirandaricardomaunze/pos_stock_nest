@@ -50,10 +50,11 @@ import { VacationService } from './vacation/vacation.service';
 import { VacationController } from './vacation/vacation.controller';
 import { VacationModule } from './vacation/vacation.module';
 import { PayrollModule } from './payroll/payroll.module';
+import { InvoiceModule } from './invoice/invoice.module';
 
 @Module({
   imports: [EventEmitterModule.forRoot(),
-    UsersModule, ProductsModule, SalesModule, InventoryModule, SalesModule, PrismaModule, AuthModule, CategoryModule, SupplierModule, DashboardModule, NotificationModule, MovementsModule, StockCheckModule, SettingsModule, EmployeeModule, CustomerModule, CompanyModule, ReturnModule, OrderModule, AttendanceModule, VacationModule, PayrollModule],
+    UsersModule, ProductsModule, SalesModule, InventoryModule, SalesModule, PrismaModule, AuthModule, CategoryModule, SupplierModule, DashboardModule, NotificationModule, MovementsModule, StockCheckModule, SettingsModule, EmployeeModule, CustomerModule, CompanyModule, ReturnModule, OrderModule, AttendanceModule, VacationModule, PayrollModule, InvoiceModule],
   controllers: [AppController, SalesController, NotificationController, MovementController, SettingsController, EmployeeController, CustomerController, CompanyController, ReturnController, OrderController, AttendanceController, VacationController],
   providers: [AppService, UsersService, SaleService, PrismaService, NotificationService,NotificationsGateway, MovementService, StockCheckService, SettingsService, EmployeeService, CustomerService, CompanyService, ReturnService, OrderService,OrderGateway, AttendanceService, VacationService],
 })

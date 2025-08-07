@@ -37,6 +37,7 @@ model User {
 
   @@index([email])
   @@index([companyId])
+  Invoice Invoice[]
 }
 
 model Product {
@@ -229,6 +230,8 @@ model Company {
   VacationRequest VacationRequest[]
 
   Attendance Attendance[]
+
+  Invoice Invoice[]
 }
 
 model Setting {
@@ -319,6 +322,28 @@ model Order {
   status        OrderStatus @default(PENDING)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+
+  Invoice Invoice[]
+}
+
+model Invoice {
+  id          Int       @id @default(autoincrement())
+  order       Order     @relation(fields: [orderId], references: [id])
+  orderId     Int       @unique
+  issuedBy    User      @relation(fields: [issuedById], references: [id])
+  issuedById  Int
+  issuedAt    DateTime  @default(now())
+  totalAmount Float
+  iva         Float
+  subTotal    Float
+  notes       String?
+  company     Company   @relation(fields: [companyId], references: [id])
+  companyId   Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([orderId])
+  @@index([companyId])
 }
 
 model OrderItem {
