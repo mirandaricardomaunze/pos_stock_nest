@@ -1,0 +1,418 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+  MANAGER
+  CASHIER
+  HR
+  FINANCE
+}
+
+model User {
+  id           Int               @id @default(autoincrement())
+  email        String            @unique
+  password     String
+  name         String?
+  role         Role              
+  sales        Sale[]
+  notifications Notification[]
+  avatarUrl    String?
+  movements    Movement[]
+  company      Company?          @relation(fields: [companyId], references: [id])
+  companyId    Int?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  employees    Employee[]
+  returns      Return[]
+  settings     Setting[]
+  vacationRequests VacationRequest[]
+
+  @@index([email])
+  @@index([companyId])
+}
+
+model Product {
+  id             Int           @id @default(autoincrement())
+  name           String
+  reference      String?
+  expiryDate     DateTime?
+  description    String?
+  iva            Float         @default(0.16)
+  quantity       Int
+  barcode        String?       @unique
+  purchasePrice  Float
+  sellingPrice   Float
+  profit         Float
+  discount       Float         @default(0.0)
+  lowLimitStock  Int           @default(5)
+  category       Category?     @relation(fields: [categoryId], references: [id])
+  categoryId     Int?
+  supplier       Supplier?     @relation(fields: [supplierId], references: [id])
+  supplierId     Int?
+  notification   Notification[]
+  notificationId Int?
+  inventory      Inventory?
+  saleItems      SaleItem[]
+  company        Company?      @relation(fields: [companyId], references: [id])
+  companyId      Int?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  Return         Return[]
+  OrderItem      OrderItem[]
+}
+
+model Inventory {
+  id         Int      @id @default(autoincrement())
+  product    Product  @relation(fields: [productId], references: [id])
+  productId  Int      @unique
+  quantity   Int      @default(0)
+  lowStock   Int      @default(5)
+  updatedAt  DateTime @updatedAt
+}
+
+model Sale {
+  id          Int       @id @default(autoincrement())
+  profit      Float     @default(0)
+  iva         Float
+  items       SaleItem[]
+  clientName  String?
+  amountPaid  Float?
+  change      Float?
+  subTotal    Float
+  total       Float
+  user        User      @relation(fields: [userId], references: [id])
+  userId      Int
+  company     Company?  @relation(fields: [companyId], references: [id])
+  companyId   Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  Return      Return[]
+}
+
+model SaleItem {
+  id            Int      @id @default(autoincrement())
+  sale          Sale     @relation(fields: [saleId], references: [id])
+  saleId        Int
+  product       Product  @relation(fields: [productId], references: [id])
+  productId     Int
+  quantity      Int
+  price         Float    @default(0)
+  purchasePrice Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Category {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?
+  products    Product[]
+  companyId   Int
+  company     Company   @relation(fields: [companyId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([name, companyId])
+}
+
+model Supplier {
+  id                  Int      @id @default(autoincrement())
+  name                String
+  isActive            Boolean  @default(true)
+  legalBusinessName   String
+  tradingName         String
+  nuit                String
+  address             String
+  addressNumber       String
+  neighborhood        String
+  city                String
+  state               String
+  country             String
+  postalCode          String?
+  contactPerson       String
+  contactPosition     String
+  phone               String
+  mobile              String
+  email               String
+  website             String?
+  bankName            String
+  bankAccountNumber   String
+  bankBranch          String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  createdBy           String?
+  updatedBy           String?
+
+  @@index([name])
+  @@index([nuit])
+  @@index([email])
+  @@index([nuit, email])
+  @@index([nuit, email, name])
+  company             Company? @relation(fields: [companyId], references: [id])
+  companyId           Int?
+
+  Product             Product[]
+}
+
+model Notification {
+  id          Int      @id @default(autoincrement())
+  type        String
+  title       String
+  message     String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+  ProductId   Int?
+  Product     Product? @relation(fields: [ProductId], references: [id])
+  company     Company? @relation(fields: [companyId], references: [id])
+  companyId   Int?
+}
+
+model Movement {
+  id          Int      @id @default(autoincrement())
+  type        String
+  entityType  String
+  entityId    Int
+  description String
+  clientName  String?
+  amountPaid  Float?
+  change      Float?
+  details     Json?
+  user        User     @relation(fields: [userId], references: [id])
+  userId      Int
+  company     Company? @relation(fields: [companyId], references: [id])
+  companyId   Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([type])
+  @@index([entityType])
+  @@index([entityId])
+  @@index([createdAt])
+}
+
+model Company {
+  id          Int        @id @default(autoincrement())
+  name        String
+  Nuit        String
+  phone       String
+  email       String
+  address     String
+  logoUrl     String
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  users       User[]
+  products    Product[]
+  sales       Sale[]
+  movements   Movement[]
+  customers   Customer[]
+  employees   Employee[]
+  categories  Category[]
+  settings    Setting[]
+  notifications Notification[]
+  suppliers   Supplier[]
+
+  Order Order[]
+
+  Payroll Payroll[]
+
+  VacationRequest VacationRequest[]
+
+  Attendance Attendance[]
+}
+
+model Setting {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  value       String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  company      Company? @relation(fields: [companyId], references: [id])
+  companyId    Int?
+  user         User?   @relation(fields: [userId], references: [id])
+  userId       Int?
+}
+
+model Employee {
+  id          Int       @id @default(autoincrement())
+  fullName    String
+  position    String?
+  email       String?   @unique
+  startDate        DateTime?
+  vacationDaysLeft Int?                @default(30)
+  phone       String?
+  address     String?
+  department  EmployeeDepartment
+  salary      Float?
+  hireDate    DateTime? @default(now())
+  isActive    Boolean   @default(true)
+  user        User?     @relation(fields: [userId], references: [id])
+  userId      Int?    
+  company     Company?  @relation(fields: [companyId], references: [id])
+  companyId   Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  orders      Order[]
+  attendances Attendance[]
+  vacations   VacationRequest[]
+  payrolls    Payroll[]
+
+  @@index([fullName])
+  @@index([companyId])
+  @@index([userId])
+}
+
+model Customer {
+  id          Int      @id @default(autoincrement())
+  name        String
+  email       String?   @unique
+  phone       String?
+  address     String?
+  nuit        String?   @unique
+  isActive    Boolean   @default(true)
+  company     Company  @relation(fields: [companyId], references: [id])
+  companyId   Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now())
+
+  @@index([name])
+  @@index([nuit])
+}
+
+model Return {
+  id             Int       @id @default(autoincrement())
+  saleId         Int
+  productId      Int
+  quantity       Int
+  reason         String?
+  returnedBy     String
+  processedById  Int
+  carPlate       String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now())
+  sale           Sale      @relation(fields: [saleId], references: [id])
+  product        Product   @relation(fields: [productId], references: [id])
+  processedBy    User      @relation(fields: [processedById], references: [id])
+}
+
+model Order {
+  id            Int         @id @default(autoincrement())
+  employee      Employee    @relation(fields: [employeeId], references: [id])
+  employeeId    Int
+  company       Company?    @relation(fields: [companyId], references: [id])
+  companyId     Int?
+  items         OrderItem[]
+  notes         String?
+  clientName    String?
+  paymentMethod String?
+  status        OrderStatus @default(PENDING)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  order     Order   @relation(fields: [orderId], references: [id])
+  orderId   Int
+  product   Product @relation(fields: [productId], references: [id])
+  productId Int
+  quantity  Int
+  price     Float
+}
+
+enum OrderStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+model Attendance {
+  id         Int       @id @default(autoincrement())
+  employee   Employee  @relation(fields: [employeeId], references: [id])
+  employeeId Int
+  checkIn    DateTime  @default(now())
+  checkOut   DateTime?
+  company    Company   @relation(fields: [companyId], references: [id])
+  companyId  Int
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([employeeId, checkIn])
+  @@index([companyId])
+}
+
+model VacationRequest {
+  id           Int           @id @default(autoincrement())
+  employee     Employee      @relation(fields: [employeeId], references: [id])
+  employeeId   Int
+  startDate    DateTime
+  endDate      DateTime
+  status       RequestStatus @default(PENDING)
+  reason       String?
+  notes        String?
+  approvedBy   User?         @relation(fields: [approvedById], references: [id])
+  approvedById Int?
+  company      Company       @relation(fields: [companyId], references: [id])
+  companyId    Int
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([companyId])
+}
+
+model Payroll {
+  id          Int           @id @default(autoincrement())
+  employee    Employee      @relation(fields: [employeeId], references: [id])
+  employeeId  Int
+  month       Int
+  year        Int
+  baseSalary  Float
+  bonuses     Float         @default(0)
+  deductions  Float         @default(0)
+  netSalary   Float
+  status      PayrollStatus @default(PENDING)
+  paymentDate DateTime?
+  company     Company       @relation(fields: [companyId], references: [id])
+  companyId   Int
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([employeeId, month, year])
+  @@index([month, year])
+  @@index([companyId])
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum PayrollStatus {
+  PENDING
+  PROCESSED
+  PAID
+  CANCELLED
+}
+enum EmployeeDepartment {
+  HR
+  FINANCE
+  IT
+  OPERATIONS
+  MARKETING
+  SALES
+}
