@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { Category } from '@prisma/client';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -12,6 +12,7 @@ export class CategoryService {
       return await this.prisma.category.create({
         data: {
           name: dto.name,
+          description: dto.description,
           company: {
             connect: { id: dto.companyId },
           },
@@ -23,7 +24,7 @@ export class CategoryService {
     }
   }
 
-    async getCategoriesByCompany(companyId: number) {
+  async getCategoriesByCompany(companyId: number) {
     try {
       const categories = await this.prisma.category.findMany({
         where: { companyId },
@@ -38,6 +39,46 @@ export class CategoryService {
     } catch (error) {
       console.error('Erro ao buscar categorias:', error);
       throw new InternalServerErrorException('Erro ao buscar categorias');
+    }
+  }
+
+  async updateCategory(
+    id: number,
+    data: Partial<CreateCategoryDto>
+  ): Promise<Category> {
+    try {
+      const existingCategory = await this.prisma.category.findUnique({ where: { id } });
+      if (!existingCategory) {
+        throw new NotFoundException('Categoria não encontrada');
+      }
+
+      return await this.prisma.category.update({
+        where: { id },
+        data: {
+          name: data.name,
+          description: data.description,
+        },
+      });
+    } catch (error) {
+      console.error('Erro ao atualizar categoria:', error);
+      if (error.status === 404) throw error;
+      throw new InternalServerErrorException('Erro ao atualizar categoria');
+    }
+  }
+
+  // Método para deletar categoria por ID
+  async deleteCategory(id: number): Promise<void> {
+    try {
+      const existingCategory = await this.prisma.category.findUnique({ where: { id } });
+      if (!existingCategory) {
+        throw new NotFoundException('Categoria não encontrada');
+      }
+
+      await this.prisma.category.delete({ where: { id } });
+    } catch (error) {
+      console.error('Erro ao deletar categoria:', error);
+      if (error.status === 404) throw error;
+      throw new InternalServerErrorException('Erro ao deletar categoria');
     }
   }
 }
