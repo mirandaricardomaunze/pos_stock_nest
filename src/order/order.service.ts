@@ -212,4 +212,32 @@ export class OrderService {
       updatedAt: order.updatedAt.toISOString(),
     }));
   }
+
+  async getOrdersByDate(
+  companyId: number,
+  startDate: string,
+  endDate: string,
+){
+  const orders = await this.prisma.order.findMany({
+    where: {
+      employee: {
+        companyId,
+      },
+      createdAt: {
+        gte: new Date(startDate),
+        lte: new Date(endDate),
+      },
+    },
+    include: this.orderIncludes(),
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return orders.map((order) => ({
+    ...order,
+    createdAt: order.createdAt.toISOString(),
+    updatedAt: order.updatedAt.toISOString(),
+  }));
+}
+
+  
 }

@@ -1,30 +1,30 @@
-// src/invoice/invoice.controller.ts
 import {
   Controller,
+  Get,
   Post,
   Body,
   Param,
-  Get,
-  ParseIntPipe,
+  Put,
+  Delete,
+  Req,
   UseGuards,
-  Request,
 } from '@nestjs/common';
 import { InvoiceService } from './invoice.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
-import { AuthGuard } from '@nestjs/passport';
+import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 import {
   ApiTags,
   ApiBearerAuth,
   ApiOperation,
   ApiResponse,
   ApiParam,
-  ApiBody,
 } from '@nestjs/swagger';
+import { AuthGuard } from '@nestjs/passport';
 
+@ApiTags('Invoices')
+@ApiBearerAuth()
+@UseGuards(AuthGuard("jwt"))
 @Controller('invoices')
-@UseGuards(AuthGuard('jwt'))
-@ApiBearerAuth() // mostra que o endpoint exige Bearer token
-@ApiTags('Invoices') // cria uma seção "Invoices" no Swagger UI
 export class InvoiceController {
   constructor(private readonly service: InvoiceService) {}
 

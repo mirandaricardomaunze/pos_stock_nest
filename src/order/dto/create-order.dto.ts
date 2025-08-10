@@ -27,7 +27,7 @@ export class CreateOrderDto{
   @ApiProperty()
   @IsOptional()
   @IsString()
-  clientName ?: string;
+  clientName : string;
    
   @ApiProperty()
   @IsOptional()

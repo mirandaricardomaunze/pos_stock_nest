@@ -12,6 +12,7 @@ import {
   UseGuards,
   Req,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -37,7 +38,8 @@ export class OrderController {
   @ApiOperation({ summary: 'Criar novo pedido' })
   @ApiBody({ type: CreateOrderDto })
   @ApiResponse({ status: 201, description: 'Pedido criado com sucesso' })
-  create(@Body() dto: CreateOrderDto, @Request() req: any) {
+  @ApiResponse({ status: 400, description: 'Dados inválidos' })
+  async create(@Body() dto: CreateOrderDto, @Request() req: any) {
     const userId = req.user?.id;
     const companyId = req.user?.companyId;
 
@@ -47,6 +49,27 @@ export class OrderController {
 
     return this.orderService.create(dto, userId, companyId);
   }
+
+  @Get('by-date')
+  @ApiOperation({ summary: 'Buscar pedidos por intervalo de datas' })
+  @ApiQuery({ name: 'startDate', type: String, required: true, description: 'Data inicial no formato YYYY-MM-DD' })
+  @ApiQuery({ name: 'endDate', type: String, required: true, description: 'Data final no formato YYYY-MM-DD' })
+  @ApiResponse({ status: 200, description: 'Lista de pedidos retornada com sucesso.', })
+  @ApiResponse({ status: 400, description: 'startDate e endDate são obrigatórios' })
+  async getOrdersByDate(
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Req() req: any, 
+  ){
+    const companyId = req.user.companyId;
+
+    if (!startDate || !endDate) {
+      throw new BadRequestException('startDate e endDate são obrigatórios');
+    }
+
+    return this.orderService.getOrdersByDate(companyId, startDate, endDate);
+  }
+
 
   @Get()
   @ApiOperation({ summary: 'Listar todos os pedidos' })
