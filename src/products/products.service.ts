@@ -25,9 +25,12 @@ export class ProductsService {
     companyId: number,
   ): Promise<Product> {
     try {
+      // Converte iva percentual para decimal (ex: 16 -> 0.16)
       const ivaPercent = data.iva ?? 0;
-      const purchasePriceWithIva =
-        (data.purchasePrice ?? 0) + ((data.purchasePrice ?? 0) * ivaPercent) / 100;
+      const ivaDecimal = ivaPercent / 100;
+
+      const purchasePrice = data.purchasePrice ?? 0;
+      const purchasePriceWithIva = purchasePrice + purchasePrice * ivaDecimal;
 
       // Calcula lucro
       const sellingPrice = data.sellingPrice ?? purchasePriceWithIva;
@@ -45,6 +48,7 @@ export class ProductsService {
             purchasePrice: purchasePriceWithIva,
             sellingPrice,
             profit,
+            iva: ivaDecimal, // salva decimal no banco, opcional
           },
         });
 
@@ -57,7 +61,7 @@ export class ProductsService {
         return updated;
       }
 
-      // Remove campos não usados diretamente no Prisma
+      // Remove campos que não são usados diretamente no prisma
       const {
         id,
         userId: _userId,
@@ -74,6 +78,7 @@ export class ProductsService {
           purchasePrice: purchasePriceWithIva,
           sellingPrice,
           profit,
+          iva: ivaDecimal, // salva decimal no banco
           company: { connect: { id: companyId } },
           category: categoryId ? { connect: { id: Number(categoryId) } } : undefined,
           supplier: supplierId ? { connect: { id: Number(supplierId) } } : undefined,
@@ -233,9 +238,16 @@ export class ProductsService {
         throw new NotFoundException('Produto não encontrado');
       }
 
-      const ivaPercent = data.iva ?? existing.iva ?? 0;
+      // Converte iva percentual para decimal
+      const ivaPercent = data.iva ?? (existing.iva ?? 0) * 100; 
+      // se existing.iva já está decimal, multiplicamos por 100 para trazer para percentual, se data.iva não vier
+      // mas para evitar confusão, sugiro manter sempre no banco em decimal, e receber sempre percentual no DTO
+
+      const ivaDecimal = data.iva !== undefined ? data.iva / 100 : existing.iva ?? 0;
+
       const purchasePrice = data.purchasePrice ?? existing.purchasePrice;
-      const purchasePriceWithIva = purchasePrice + (purchasePrice * ivaPercent) / 100;
+      const purchasePriceWithIva = purchasePrice + purchasePrice * ivaDecimal;
+
       const sellingPrice = data.sellingPrice ?? existing.sellingPrice;
       const profit = sellingPrice - purchasePriceWithIva;
 
@@ -243,10 +255,11 @@ export class ProductsService {
         where: { id },
         data: {
           ...data,
+          iva: ivaDecimal,
           purchasePrice: purchasePriceWithIva,
           sellingPrice,
           profit,
-          companyId: existing.companyId, // mantém empresa fixa
+          companyId: existing.companyId,
         },
       });
 
@@ -264,27 +277,61 @@ export class ProductsService {
     }
   }
 
-  async deleteProduct(id: number, userId: number): Promise<void> {
-    try {
-      const existing = await this.prisma.product.findUnique({ where: { id } });
-      if (!existing) {
-        throw new NotFoundException('Produto não encontrado');
-      }
-
-      await this.prisma.product.delete({ where: { id } });
-
-      await this.createMovement({
-        id,
-        userId,
-        movementType: 'DELETE_PRODUCT',
-        name: existing.name,
-        quantity: existing.quantity,
-        purchasePrice: existing.purchasePrice,
-      });
-    } catch (error) {
-      this.logger.error(`Erro ao excluir produto ${id}: ${error.message}`, error.stack);
-      if (error instanceof NotFoundException) throw error;
-      throw new InternalServerErrorException('Erro ao excluir produto');
+async deleteProduct(id: number, userId: number): Promise<void> {
+  try {
+    const existing = await this.prisma.product.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException('Produto não encontrado');
     }
+
+    // Excluir notificações associadas
+    await this.prisma.notification.deleteMany({
+      where: { ProductId: id },
+    });
+
+    // Excluir inventário associado
+    await this.prisma.inventory.deleteMany({
+      where: { productId: id },
+    });
+
+    // Excluir itens de venda
+    await this.prisma.saleItem.deleteMany({
+      where: { productId: id },
+    });
+
+    // Excluir retornos associados
+    await this.prisma.return.deleteMany({
+      where: { productId: id },
+    });
+
+    // Excluir itens de pedidos (orders)
+    await this.prisma.orderItem.deleteMany({
+      where: { productId: id },
+    });
+
+    // Excluir movimentos (se existirem para esse produto)
+    await this.prisma.movement.deleteMany({
+      where: { entityId: id, entityType: 'Product' },
+    });
+
+    // Agora pode excluir o produto
+    await this.prisma.product.delete({ where: { id } });
+
+    // Criar movimento de exclusão
+    await this.createMovement({
+      id,
+      userId,
+      movementType: 'DELETE_PRODUCT',
+      name: existing.name,
+      quantity: existing.quantity,
+      purchasePrice: existing.purchasePrice,
+    });
+  } catch (error) {
+    this.logger.error(`Erro ao excluir produto ${id}: ${error.message}`, error.stack);
+    if (error instanceof NotFoundException) throw error;
+    throw new InternalServerErrorException('Erro ao excluir produto');
   }
+}
+
+
 }
