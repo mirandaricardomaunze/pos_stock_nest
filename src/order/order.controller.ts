@@ -70,6 +70,51 @@ export class OrderController {
     return this.orderService.getOrdersByDate(companyId, startDate, endDate);
   }
 
+  @Get("orders-by-date")
+  @ApiOperation({ summary: "Gera relatório de pedidos por intervalo de datas" })
+  @ApiQuery({
+    name: "startDate",
+    required: false,
+    type: String,
+    example: "2025-01-01",
+    description: "Data inicial no formato YYYY-MM-DD"
+  })
+  @ApiQuery({
+    name: "endDate",
+    required: false,
+    type: String,
+    example: "2025-01-31",
+    description: "Data final no formato YYYY-MM-DD"
+  })
+  @ApiResponse({status: 200,description: "Lista de pedidos e dados para gráfico",
+    schema: {type: "object", properties: { orders: { type: "array", items: { type: "object" } },chartData: {
+    type: "array",items: {
+            type: "object",
+            properties: {
+              date: { type: "string", example: "2025-01-01" },
+              count: { type: "number", example: 5 },
+              total: { type: "number", example: 1500 }
+            }
+          }
+        }
+      }
+    }
+  })
+  async getOrdersReport(
+    @Req() req,
+    @Query("startDate") startDate?: string,
+    @Query("endDate") endDate?: string
+  ) {
+    const companyId = req.user.companyId; // vem do token decodificado pelo JWT Strategy
+
+    return this.orderService.getReportOrderByDateRange(
+      companyId,
+      startDate ? new Date(startDate) : undefined,
+      endDate ? new Date(endDate) : undefined
+    );
+  }
+
+
 
   @Get()
   @ApiOperation({ summary: 'Listar todos os pedidos' })

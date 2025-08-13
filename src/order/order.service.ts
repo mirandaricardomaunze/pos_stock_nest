@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { Order, OrderStatus } from '@prisma/client';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from 'prisma/prisma.service';
@@ -237,6 +237,101 @@ export class OrderService {
     createdAt: order.createdAt.toISOString(),
     updatedAt: order.updatedAt.toISOString(),
   }));
+}
+
+async getReportOrderByDateRange(
+  companyId: number,
+  startDate?: string | Date,
+  endDate?: string | Date
+) {
+  try {
+    // Converte para Date se necessário
+    const start = startDate ? new Date(startDate) : undefined;
+    const end = endDate ? new Date(endDate) : undefined;
+
+    // Validação de datas
+    if (start && end && start > end) {
+      throw new BadRequestException(
+        "A data inicial não pode ser posterior à data final."
+      );
+    }
+
+    // Ajusta hora do final do dia
+    if (end) end.setHours(23, 59, 59, 999);
+
+    // Query SQL para dados agregados (chartData)
+    const params: any[] = [companyId];
+    let dateFilter = "";
+
+    if (start && end) {
+      params.push(start, end);
+      dateFilter = `AND o."createdAt" BETWEEN $2 AND $3`;
+    }
+
+    const chartDataRaw = await this.prisma.$queryRawUnsafe<any[]>(`
+      SELECT
+        DATE(o."createdAt") AS date,
+        COUNT(DISTINCT o.id) AS count,
+        SUM(oi.quantity * p."sellingPrice") AS total
+      FROM "Order" o
+      JOIN "OrderItem" oi ON oi."orderId" = o.id
+      JOIN "Product" p ON p.id = oi."productId"
+      JOIN "Employee" e ON e.id = o."employeeId"
+      WHERE e."companyId" = $1
+      ${dateFilter}
+      GROUP BY DATE(o."createdAt")
+      ORDER BY date DESC
+    `, ...params);
+
+    // Total geral de pedidos e vendas
+    const totalPedidos = chartDataRaw.reduce((sum, row) => sum + Number(row.count), 0);
+    const totalVendas = chartDataRaw.reduce((sum, row) => sum + Number(row.total), 0);
+
+    // Buscar orders detalhadas via Prisma
+    const orders = await this.prisma.order.findMany({
+      where: {
+        employee: {
+          companyId
+        },
+        ...(start && end ? { createdAt: { gte: start, lte: end } } : {}),
+      },
+      include: {
+        ...this.orderIncludes(),
+        items: {
+          include: { product: true }
+        }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    // Formata datas para ISO
+    const formattedOrders = orders.map(order => ({
+      ...order,
+      createdAt: order.createdAt?.toISOString(),
+      updatedAt: order.updatedAt?.toISOString(),
+    }));
+
+    // Formata chartData
+    const formattedChartData = chartDataRaw.map(r => ({
+      date: r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date),
+      count: Number(r.count),
+      total: Number(r.total)
+    }));
+
+
+    return {
+      totalPedidos,
+      totalVendas,
+      orders: formattedOrders,
+      chartData: formattedChartData
+    };
+
+  } catch (error) {
+    console.error("Erro ao gerar relatório de pedidos por data:", error);
+    throw new BadRequestException(
+      "Erro ao gerar relatório de pedidos por data."
+    );
+  }
 }
 
   
