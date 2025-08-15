@@ -65,7 +65,7 @@ async create(createDto: CreateInvoiceDto, companyId: number, issuedById: number)
         company: true,
       },
     });
-
+      
     const invoicesDetails = invoices.map((invoice) => ({
       ...invoice,
       issuedAtISO: invoice.issuedAt.toISOString(),
@@ -73,7 +73,6 @@ async create(createDto: CreateInvoiceDto, companyId: number, issuedById: number)
       updatedAtISO: invoice.updatedAt.toISOString(),
       orderCreatedAtISO: invoice.order?.createdAt?.toISOString(),
     }));
-
     return invoicesDetails;
   } catch (error) {
     this.handlePrismaError(error);
